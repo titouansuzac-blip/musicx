@@ -434,3 +434,135 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
   .main { padding: 18px 16px 30px; }
 }
+
+/* ============================================================
+   Launch overlay — takeover cinétique au lancement d'un morceau
+   (inspiré de la vidéo : grille en perspective + disque noir +
+    typographie géante qui pulse)
+   ============================================================ */
+.launch {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  background: var(--accent, #ff2a2a);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity .28s ease;
+  cursor: pointer;
+}
+.launch[hidden] { display: none; }
+.launch.is-on { opacity: 1; }
+.launch.is-off { opacity: 0; transition: opacity .4s ease; }
+
+/* Grille en perspective qui défile */
+.launch::before {
+  content: "";
+  position: absolute;
+  left: -40%; right: -40%; top: -20%; bottom: -40%;
+  background-image:
+    linear-gradient(rgba(0,0,0,.30) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, rgba(0,0,0,.30) 1.5px, transparent 1.5px);
+  background-size: 46px 46px;
+  transform: perspective(720px) rotateX(34deg) scale(1.4);
+  transform-origin: center 60%;
+  animation: launch-grid 3.2s linear infinite;
+}
+/* Vignette pour le bombé */
+.launch::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at center, transparent 30%, rgba(0,0,0,.18) 100%);
+  pointer-events: none;
+}
+@keyframes launch-grid {
+  from { background-position: 0 0; }
+  to   { background-position: 0 46px; }
+}
+
+.launch__disc {
+  position: relative;
+  width: min(74vw, 62vh);
+  aspect-ratio: 1;
+  background: var(--ink);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  transform: scale(0);
+  transition: transform .42s cubic-bezier(.2,1.1,.3,1), border-radius .8s ease;
+  box-shadow: 0 0 0 6px rgba(0,0,0,.18);
+  z-index: 2;
+}
+.launch.is-on .launch__disc {
+  transform: scale(1);
+  /* léger morphing organique du blob */
+  animation: launch-blob 4s ease-in-out infinite;
+}
+.launch.is-off .launch__disc { transform: scale(0.2); }
+@keyframes launch-blob {
+  0%, 100% { border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; }
+  33%      { border-radius: 54% 46% 51% 49% / 47% 52% 48% 53%; }
+  66%      { border-radius: 47% 53% 48% 52% / 53% 47% 52% 48%; }
+}
+
+.launch__word {
+  font-family: "Anton", var(--font-display), sans-serif;
+  font-weight: 400;
+  color: var(--accent, #ff2a2a);
+  font-size: clamp(54px, 17vw, 150px);
+  line-height: .9;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  transform: scaleY(1.18);
+  text-align: center;
+  padding: 0 6%;
+  text-shadow: 0 0 30px rgba(0,0,0,.4);
+}
+
+.launch__caption {
+  position: absolute;
+  bottom: 12%;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .22em;
+  color: rgba(255,255,255,.45);
+  text-align: center;
+  width: 80%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.launch__sparks span {
+  position: absolute;
+  color: var(--accent, #ff2a2a);
+  font-size: 18px;
+  opacity: 0;
+  animation: launch-spark 1.6s ease-in-out infinite;
+}
+.launch.is-on .launch__sparks span { opacity: 1; }
+.launch__sparks span:nth-child(1) { top: 18%; left: 24%; animation-delay: .1s; }
+.launch__sparks span:nth-child(2) { top: 26%; right: 20%; animation-delay: .5s; font-size: 14px; }
+.launch__sparks span:nth-child(3) { bottom: 30%; left: 30%; animation-delay: .9s; font-size: 12px; }
+.launch__sparks span:nth-child(4) { bottom: 24%; right: 26%; animation-delay: 1.2s; }
+@keyframes launch-spark {
+  0%, 100% { transform: scale(.4) rotate(0deg); opacity: .2; }
+  50%      { transform: scale(1) rotate(45deg); opacity: .9; }
+}
+
+/* monogramme bas, clin d'œil à la vidéo */
+.launch__mark {
+  position: absolute;
+  bottom: 5%;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: -.05em;
+  color: var(--ink);
+  z-index: 3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .launch::before, .launch.is-on .launch__disc, .launch__sparks span { animation: none; }
+}

@@ -5,6 +5,7 @@ import * as Lib from "./library.js";
 import { loadState, saveState } from "./storage.js";
 import * as UI from "./ui.js";
 import { $, $$ } from "./ui.js";
+import { showLaunch } from "./launch.js";
 
 const state = loadState();
 const player = new Player();
@@ -46,25 +47,26 @@ function applyAccent() {
 // ============================================================
 // Lecture
 // ============================================================
-function playTrack(track, { autoplay = true, startTime = 0 } = {}) {
+function playTrack(track, { autoplay = true, startTime = 0, launch = false } = {}) {
   queueIndex = Math.max(0, queue.indexOf(track.id));
   player.load(track, { autoplay, startTime });
   applyAccent();
   refreshLibrary();
   updateMediaSession();
+  if (launch) showLaunch(track);
 }
 
-function playByIndex(i) {
+function playByIndex(i, launch = false) {
   if (!queue.length) return;
   queueIndex = (i + queue.length) % queue.length;
   const t = Lib.getTrackById(queue[queueIndex]);
-  if (t) playTrack(t);
+  if (t) playTrack(t, { launch });
 }
 
-function next() { playByIndex(queueIndex + 1); }
-function prev() {
+function next(launch = false) { playByIndex(queueIndex + 1, launch); }
+function prev(launch = false) {
   if (player.getCurrentTime() > 3) { player.seek(0); return; }
-  playByIndex(queueIndex - 1);
+  playByIndex(queueIndex - 1, launch);
 }
 
 // ============================================================
@@ -73,7 +75,7 @@ function prev() {
 function refreshLibrary() {
   UI.renderLibrary(Lib.getTracks(), player.track?.id, (t) => {
     queue = Lib.getTracks().map((x) => x.id);
-    playTrack(t);
+    playTrack(t, { launch: true });
   });
 }
 
@@ -81,7 +83,7 @@ function refreshPlaylists() {
   UI.renderPlaylists(Lib.PLAYLISTS, (pl, tracks) => {
     if (!tracks.length) return;
     queue = pl.trackIds.slice();
-    playTrack(tracks[0]);
+    playTrack(tracks[0], { launch: true });
     UI.switchView("library");
     state.view = "library"; saveState({ view: "library" });
   });
@@ -123,8 +125,8 @@ function setupMediaSession() {
   const ms = navigator.mediaSession;
   ms.setActionHandler("play", () => player.play());
   ms.setActionHandler("pause", () => player.pause());
-  ms.setActionHandler("previoustrack", () => prev());
-  ms.setActionHandler("nexttrack", () => next());
+  ms.setActionHandler("previoustrack", () => prev(true));
+  ms.setActionHandler("nexttrack", () => next(true));
   ms.setActionHandler("seekto", (d) => d.seekTime != null && player.seek(d.seekTime));
 }
 
@@ -133,8 +135,8 @@ function setupMediaSession() {
 // ============================================================
 function bindControls() {
   $("#btn-play").addEventListener("click", () => player.toggle());
-  $("#btn-next").addEventListener("click", next);
-  $("#btn-prev").addEventListener("click", prev);
+  $("#btn-next").addEventListener("click", () => next(true));
+  $("#btn-prev").addEventListener("click", () => prev(true));
 
   // Barre de progression (clic + glissé)
   bindScrubber($("#progress-bar"), (pct) => player.seek(pct * player.getDuration()));
@@ -168,7 +170,7 @@ function bindControls() {
     const added = Lib.importFiles(e.target.files);
     if (added.length) {
       queue = Lib.getTracks().map((t) => t.id);
-      playTrack(added[0]);
+      playTrack(added[0], { launch: true });
     }
     e.target.value = "";
   });
@@ -188,8 +190,8 @@ function bindControls() {
   document.addEventListener("keydown", (e) => {
     if (e.target.matches("input")) return;
     if (e.code === "Space") { e.preventDefault(); player.toggle(); }
-    if (e.code === "ArrowRight") next();
-    if (e.code === "ArrowLeft") prev();
+    if (e.code === "ArrowRight") next(true);
+    if (e.code === "ArrowLeft") prev(true);
   });
 }
 

@@ -11,6 +11,7 @@ const ASSETS = [
   "./src/js/library.js",
   "./src/js/ui.js",
   "./src/js/storage.js",
+  "./src/js/launch.js",
   "./vendor/three.module.js",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
