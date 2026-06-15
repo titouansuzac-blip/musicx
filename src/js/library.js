@@ -1,0 +1,167 @@
+// Bibliothèque : morceaux de démo génératifs + import de fichiers locaux.
+// Chaque morceau de démo embarque une "recette" musicale jouée par le moteur
+// Web Audio (player.js), pour fonctionner totalement hors-ligne sans assets.
+
+const PALETTE = {
+  orange: "#ff5a36",
+  purple: "#8b5cf6",
+  blue: "#2f6bff",
+  green: "#2fcf6b",
+  yellow: "#ffc42e",
+  pink: "#ff7ac6",
+  red: "#ff3b3b",
+};
+
+// Gammes (demi-tons relatifs à la fondamentale)
+const SCALES = {
+  minorPent: [0, 3, 5, 7, 10],
+  major: [0, 2, 4, 5, 7, 9, 11],
+  dorian: [0, 2, 3, 5, 7, 9, 10],
+  lydian: [0, 2, 4, 6, 7, 9, 11],
+};
+
+export const DEMO_TRACKS = [
+  {
+    id: "demo-neon",
+    title: "Neon Grid",
+    artist: "pulse engine",
+    album: "Pixel Dreams",
+    color: PALETTE.orange,
+    duration: 168,
+    recipe: { root: 49, scale: "minorPent", bpm: 112, mood: "drive", wave: "sawtooth" },
+  },
+  {
+    id: "demo-violet",
+    title: "Violet Hours",
+    artist: "pulse engine",
+    album: "Pixel Dreams",
+    color: PALETTE.purple,
+    duration: 192,
+    recipe: { root: 45, scale: "dorian", bpm: 92, mood: "dream", wave: "triangle" },
+  },
+  {
+    id: "demo-cobalt",
+    title: "Cobalt Run",
+    artist: "pulse engine",
+    album: "Synthwave Sketches",
+    color: PALETTE.blue,
+    duration: 150,
+    recipe: { root: 52, scale: "minorPent", bpm: 128, mood: "drive", wave: "square" },
+  },
+  {
+    id: "demo-lime",
+    title: "Acid Lime",
+    artist: "pulse engine",
+    album: "Synthwave Sketches",
+    color: PALETTE.green,
+    duration: 176,
+    recipe: { root: 50, scale: "lydian", bpm: 120, mood: "bounce", wave: "sawtooth" },
+  },
+  {
+    id: "demo-gold",
+    title: "Golden Static",
+    artist: "pulse engine",
+    album: "Pixel Dreams",
+    color: PALETTE.yellow,
+    duration: 158,
+    recipe: { root: 48, scale: "major", bpm: 104, mood: "bounce", wave: "triangle" },
+  },
+  {
+    id: "demo-rose",
+    title: "Rose Machine",
+    artist: "pulse engine",
+    album: "Afterglow",
+    color: PALETTE.pink,
+    duration: 184,
+    recipe: { root: 53, scale: "dorian", bpm: 100, mood: "dream", wave: "sine" },
+  },
+];
+
+export const PLAYLISTS = [
+  { id: "pl-focus", title: "Deep Focus", color: PALETTE.blue, trackIds: ["demo-violet", "demo-rose"] },
+  { id: "pl-drive", title: "Night Drive", color: PALETTE.orange, trackIds: ["demo-neon", "demo-cobalt", "demo-lime"] },
+  { id: "pl-all", title: "Tout pulse.", color: PALETTE.purple, trackIds: DEMO_TRACKS.map((t) => t.id) },
+];
+
+export function getScale(name) {
+  return SCALES[name] || SCALES.minorPent;
+}
+
+// ---- Bibliothèque vivante (démo + fichiers importés) ----
+let tracks = [...DEMO_TRACKS];
+const listeners = new Set();
+
+export function getTracks() { return tracks; }
+export function getTrackById(id) { return tracks.find((t) => t.id === id) || null; }
+export function onLibraryChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+function emit() { listeners.forEach((fn) => fn(tracks)); }
+
+let importCounter = 0;
+export function importFiles(fileList) {
+  const added = [];
+  for (const file of fileList) {
+    if (!file.type.startsWith("audio/")) continue;
+    const url = URL.createObjectURL(file);
+    const color = Object.values(PALETTE)[importCounter % Object.keys(PALETTE).length];
+    const name = file.name.replace(/\.[^.]+$/, "");
+    const track = {
+      id: `file-${Date.now()}-${importCounter++}`,
+      title: name,
+      artist: "Vos fichiers",
+      album: "Importé",
+      color,
+      duration: 0, // renseigné au chargement par <audio>
+      file: true,
+      url,
+    };
+    tracks = [track, ...tracks];
+    added.push(track);
+  }
+  if (added.length) emit();
+  return added;
+}
+
+// ---- Pochettes pixel-art générées (esthétique des références) ----
+const coverCache = new Map();
+export function generateCover(track, size = 256) {
+  if (coverCache.has(track.id)) return coverCache.get(track.id);
+  const cells = 8;
+  const cell = size / cells;
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const ctx = c.getContext("2d");
+
+  ctx.fillStyle = track.color;
+  ctx.fillRect(0, 0, size, size);
+
+  // Hash déterministe depuis l'id pour un motif stable
+  let seed = 0;
+  for (let i = 0; i < track.id.length; i++) seed = (seed * 31 + track.id.charCodeAt(i)) >>> 0;
+  const rand = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+
+  const dark = "rgba(13,13,13,0.92)";
+  const light = "rgba(244,241,233,0.9)";
+
+  // Motif symétrique type "icône pixel" (smiley/œil des références)
+  for (let y = 0; y < cells; y++) {
+    for (let x = 0; x < cells / 2; x++) {
+      if (rand() > 0.5) {
+        ctx.fillStyle = rand() > 0.7 ? light : dark;
+        ctx.fillRect(x * cell, y * cell, cell, cell);
+        ctx.fillRect((cells - 1 - x) * cell, y * cell, cell, cell);
+      }
+    }
+  }
+
+  // Cadre
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = Math.max(2, size / 64);
+  ctx.strokeRect(ctx.lineWidth / 2, ctx.lineWidth / 2, size - ctx.lineWidth, size - ctx.lineWidth);
+
+  const url = c.toDataURL("image/png");
+  coverCache.set(track.id, url);
+  return url;
+}

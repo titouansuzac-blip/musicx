@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0d0d0d" />
+  <meta name="description" content="pulse. — lecteur de musique pixel-art avec visualiseur 3D réactif." />
+  <title>pulse.</title>
+
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./assets/icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="./src/css/styles.css" />
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app" class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true"></span>
+        <span class="brand__name">pulse<span class="dot">.</span></span>
+      </div>
+
+      <nav class="nav" aria-label="Navigation principale">
+        <button class="nav__item is-active" data-view="library">
+          <span class="nav__ico" data-ico="library"></span>
+          <span class="nav__label">Bibliothèque</span>
+        </button>
+        <button class="nav__item" data-view="playlists">
+          <span class="nav__ico" data-ico="playlists"></span>
+          <span class="nav__label">Playlists</span>
+        </button>
+        <button class="nav__item" data-view="visual">
+          <span class="nav__ico" data-ico="visual"></span>
+          <span class="nav__label">Visualiseur</span>
+        </button>
+        <button class="nav__item" data-view="settings">
+          <span class="nav__ico" data-ico="settings"></span>
+          <span class="nav__label">Paramètres</span>
+        </button>
+      </nav>
+
+      <div class="sidebar__swatches" aria-hidden="true">
+        <span style="--c:var(--orange)"></span>
+        <span style="--c:var(--purple)"></span>
+        <span style="--c:var(--blue)"></span>
+        <span style="--c:var(--green)"></span>
+        <span style="--c:var(--yellow)"></span>
+      </div>
+
+      <label class="import-btn">
+        <input type="file" id="file-input" accept="audio/*" multiple hidden />
+        <span class="import-btn__plus">+</span>
+        <span>Ajouter des fichiers</span>
+      </label>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main" id="main">
+      <header class="topbar">
+        <button class="topbar__menu" id="menu-toggle" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="topbar__title">
+          <h1 id="view-title">Bibliothèque</h1>
+          <p id="view-sub">Votre univers sonore</p>
+        </div>
+        <div class="topbar__badge" id="track-count">0 morceaux</div>
+      </header>
+
+      <!-- Library view -->
+      <section class="view is-active" id="view-library">
+        <div class="grid" id="library-grid"></div>
+      </section>
+
+      <!-- Playlists view -->
+      <section class="view" id="view-playlists">
+        <div class="grid" id="playlists-grid"></div>
+      </section>
+
+      <!-- Visual view -->
+      <section class="view view--visual" id="view-visual">
+        <div class="visual-stage">
+          <canvas id="visualizer-full"></canvas>
+        </div>
+      </section>
+
+      <!-- Settings view -->
+      <section class="view" id="view-settings">
+        <div class="settings">
+          <div class="card-block">
+            <h2>Thème du visualiseur</h2>
+            <div class="seg" id="viz-style">
+              <button data-style="bars" class="is-active">Barres pixel</button>
+              <button data-style="grid">Grille</button>
+              <button data-style="tunnel">Tunnel</button>
+            </div>
+          </div>
+          <div class="card-block">
+            <h2>Lecture</h2>
+            <label class="toggle">
+              <input type="checkbox" id="autoplay-next" checked />
+              <span>Enchaîner automatiquement</span>
+            </label>
+            <label class="toggle">
+              <input type="checkbox" id="bg-pixels" checked />
+              <span>Fond animé</span>
+            </label>
+          </div>
+          <div class="card-block">
+            <h2>À propos</h2>
+            <p class="muted">pulse. — lecteur de musique PWA. Visualiseur 3D Three.js, moteur audio Web Audio, état persistant. Installable sur mobile.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Now playing dock -->
+    <footer class="dock" id="dock">
+      <div class="dock__viz">
+        <canvas id="visualizer-mini"></canvas>
+      </div>
+
+      <div class="dock__meta">
+        <div class="dock__cover" id="dock-cover"></div>
+        <div class="dock__text">
+          <span class="dock__title" id="dock-title">Aucun morceau</span>
+          <span class="dock__artist" id="dock-artist">—</span>
+        </div>
+      </div>
+
+      <div class="dock__controls">
+        <div class="ctrl-row">
+          <button class="ctrl" id="btn-prev" aria-label="Précédent" data-ico="prev"></button>
+          <button class="ctrl ctrl--play" id="btn-play" aria-label="Lecture / Pause" data-ico="play"></button>
+          <button class="ctrl" id="btn-next" aria-label="Suivant" data-ico="next"></button>
+        </div>
+        <div class="progress">
+          <span class="progress__time" id="time-current">0:00</span>
+          <div class="progress__bar" id="progress-bar">
+            <div class="progress__fill" id="progress-fill"></div>
+            <div class="progress__knob" id="progress-knob"></div>
+          </div>
+          <span class="progress__time" id="time-total">0:00</span>
+        </div>
+      </div>
+
+      <div class="dock__volume">
+        <button class="ctrl ctrl--small" id="btn-mute" aria-label="Muet" data-ico="vol"></button>
+        <div class="volume">
+          <div class="volume__bar" id="volume-bar">
+            <div class="volume__fill" id="volume-fill"></div>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <div class="scrim" id="scrim"></div>
+  </div>
+
+  <script type="module" src="./src/js/app.js"></script>
+</body>
+</html>
