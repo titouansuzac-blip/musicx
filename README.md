@@ -24,7 +24,9 @@ des modules ES natifs servis en statique.
 - **Persistance** : morceau, position, volume, vue, shuffle/repeat et préférences conservés (`localStorage`).
 - **Démos hors-ligne** : 6 morceaux générés en temps réel par un séquenceur Web Audio (basse, arpège, nappe, batterie) — aucun fichier audio requis.
 - **Import persistant** : ajout de vos fichiers audio via le bouton + ou par glisser-déposer ; les fichiers sont stockés en **IndexedDB** et survivent aux rechargements.
-- **Installable** : manifest + service worker (app shell + Three.js mis en cache).
+- **100 % hors-ligne** : Three.js et les polices sont embarqués localement ; aucune requête externe. App shell + assets mis en cache par le service worker.
+- **Installable** : manifest + service worker, avec un bouton « Installer l'app » explicite.
+- **Accessibilité** : navigation clavier complète (sliders `role="slider"` avec flèches/Début/Fin, focus visible), `aria-pressed`/`aria-current`, modales (`role="dialog"`, `aria-modal`, `inert` sur l'arrière-plan, fermeture par Échap), respect de `prefers-reduced-motion`.
 
 ## Lancer en local
 
@@ -46,11 +48,15 @@ musicx/
 ├── sw.js                   # service worker (cache hors-ligne)
 ├── vendor/
 │   └── three.module.js     # Three.js vendorisé (fonctionne hors-ligne)
-├── assets/icons/           # icônes PWA (192/512/maskable)
+├── assets/
+│   ├── icons/              # icônes PWA (192/512/maskable)
+│   └── fonts/              # polices woff2 embarquées (sous-ensemble latin)
 ├── tools/
 │   └── generate-icons.mjs  # génère les icônes PNG (sans dépendance)
 └── src/
-    ├── css/styles.css      # design system néo-brutaliste
+    ├── css/
+    │   ├── fonts.css       # @font-face locaux
+    │   └── styles.css      # design system néo-brutaliste
     └── js/
         ├── app.js          # bootstrap : relie tout (file d'attente, modes…)
         ├── player.js       # moteur Web Audio (génératif + fichier) + analyser

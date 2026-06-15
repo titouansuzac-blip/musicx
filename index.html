@@ -13,10 +13,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="mobile-web-app-capable" content="yes" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;600;800;900&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
-
+  <link rel="stylesheet" href="./src/css/fonts.css" />
   <link rel="stylesheet" href="./src/css/styles.css" />
 
   <script type="importmap">
@@ -68,6 +65,11 @@
         <span class="import-btn__plus">+</span>
         <span>Ajouter des fichiers</span>
       </label>
+
+      <button class="install-btn" id="install-btn" hidden>
+        <span class="install-btn__ico" aria-hidden="true"></span>
+        <span>Installer l'app</span>
+      </button>
     </aside>
 
     <!-- Main content -->
@@ -159,7 +161,8 @@
         </div>
         <div class="progress">
           <span class="progress__time" id="time-current">0:00</span>
-          <div class="progress__bar" id="progress-bar">
+          <div class="progress__bar" id="progress-bar" role="slider" tabindex="0"
+               aria-label="Progression" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
             <div class="progress__fill" id="progress-fill"></div>
             <div class="progress__knob" id="progress-knob"></div>
           </div>
@@ -171,7 +174,8 @@
         <button class="ctrl ctrl--small" id="btn-queue" aria-label="File d'attente" data-ico="queue"></button>
         <button class="ctrl ctrl--small" id="btn-mute" aria-label="Muet" data-ico="vol"></button>
         <div class="volume">
-          <div class="volume__bar" id="volume-bar">
+          <div class="volume__bar" id="volume-bar" role="slider" tabindex="0"
+               aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="80">
             <div class="volume__fill" id="volume-fill"></div>
           </div>
         </div>
@@ -179,7 +183,7 @@
     </footer>
 
     <!-- File d'attente (À suivre) -->
-    <aside class="queue-panel" id="queue-panel" aria-label="File d'attente">
+    <aside class="queue-panel" id="queue-panel" role="dialog" aria-modal="true" aria-label="File d'attente">
       <div class="queue-panel__head">
         <h2>À suivre</h2>
         <button class="queue-panel__close" id="queue-close" aria-label="Fermer">✕</button>
@@ -199,7 +203,7 @@
     </div>
 
     <!-- Vue lecture plein écran -->
-    <section class="np" id="nowplaying" hidden aria-label="Lecture en cours">
+    <section class="np" id="nowplaying" hidden role="dialog" aria-modal="true" aria-label="Lecture en cours">
       <header class="np__top">
         <button class="np__close" id="np-close" aria-label="Réduire">▾</button>
         <span class="np__label">En lecture</span>
@@ -217,7 +221,8 @@
 
       <div class="np__progress">
         <span class="progress__time" id="np-time-current">0:00</span>
-        <div class="progress__bar" id="np-progress-bar">
+        <div class="progress__bar" id="np-progress-bar" role="slider" tabindex="0"
+             aria-label="Progression" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <div class="progress__fill" id="np-progress-fill"></div>
           <div class="progress__knob" id="np-progress-knob"></div>
         </div>

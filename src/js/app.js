@@ -60,8 +60,18 @@ function applyAccent() {
 
 // ---- Vue lecture plein écran ----
 let npOpen = false;
+let npLastFocus = null;
+
+function setBackgroundInert(on) {
+  for (const sel of ["#sidebar", "#main", "#dock"]) {
+    const el = $(sel);
+    if (el) el.inert = on;
+  }
+}
+
 function openNowPlaying() {
   if (!player.track) return;
+  npLastFocus = document.activeElement;
   npOpen = true;
   const np = $("#nowplaying");
   np.hidden = false;
@@ -69,13 +79,17 @@ function openNowPlaying() {
   np.classList.add("is-open");
   ensureNpViz();
   vizNp?.start();
+  setBackgroundInert(true);
+  $("#np-close").focus();
 }
 function closeNowPlaying() {
   npOpen = false;
   const np = $("#nowplaying");
   np.classList.remove("is-open");
   vizNp?.stop();
+  setBackgroundInert(false);
   setTimeout(() => { if (!npOpen) np.hidden = true; }, 360);
+  npLastFocus?.focus?.();
 }
 
 // ============================================================
@@ -302,7 +316,6 @@ function bindControls() {
   $("#np-shuffle").addEventListener("click", toggleShuffle);
   $("#np-repeat").addEventListener("click", cycleRepeat);
   $("#np-queue").addEventListener("click", () => toggleQueue());
-  bindScrubber($("#np-progress-bar"), (pct) => player.seek(pct * player.getDuration()));
 
   // Recherche
   const search = $("#search");
@@ -316,10 +329,12 @@ function bindControls() {
     refreshLibrary(); search.focus();
   });
 
-  // Barre de progression (clic + glissé)
-  bindScrubber($("#progress-bar"), (pct) => player.seek(pct * player.getDuration()));
-  // Volume
-  bindScrubber($("#volume-bar"), (pct) => player.setVolume(pct));
+  // Barre de progression (clic + glissé + clavier)
+  const progressPct = () => { const d = player.getDuration(); return d ? player.getCurrentTime() / d : 0; };
+  bindScrubber($("#progress-bar"), (pct) => player.seek(pct * player.getDuration()), progressPct);
+  bindScrubber($("#np-progress-bar"), (pct) => player.seek(pct * player.getDuration()), progressPct);
+  // Volume (clic + glissé + clavier)
+  bindScrubber($("#volume-bar"), (pct) => player.setVolume(pct), () => player.volume);
   $("#btn-mute").addEventListener("click", () => {
     player.setVolume(player.volume > 0 ? 0 : 0.8);
   });
@@ -373,7 +388,7 @@ function bindControls() {
   });
 }
 
-function bindScrubber(el, onChange) {
+function bindScrubber(el, onChange, getPct) {
   const handle = (e) => {
     const rect = el.getBoundingClientRect();
     const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
@@ -385,6 +400,24 @@ function bindScrubber(el, onChange) {
   window.addEventListener("mouseup", () => (dragging = false));
   el.addEventListener("touchstart", (e) => { handle(e); }, { passive: true });
   el.addEventListener("touchmove", (e) => handle(e), { passive: true });
+
+  // Clavier (rôle slider) : flèches, Page↑/↓, Début/Fin.
+  if (getPct) {
+    el.addEventListener("keydown", (e) => {
+      let p = getPct();
+      switch (e.key) {
+        case "ArrowRight": case "ArrowUp": p += 0.05; break;
+        case "ArrowLeft": case "ArrowDown": p -= 0.05; break;
+        case "PageUp": p += 0.1; break;
+        case "PageDown": p -= 0.1; break;
+        case "Home": p = 0; break;
+        case "End": p = 1; break;
+        default: return;
+      }
+      e.preventDefault();
+      onChange(Math.max(0, Math.min(1, p)));
+    });
+  }
 }
 
 function closeSidebar() {
@@ -466,6 +499,28 @@ function registerSW() {
   }
 }
 
+// Bouton d'installation : apparaît quand le navigateur propose l'installation.
+let deferredPrompt = null;
+function setupInstall() {
+  const btn = $("#install-btn");
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    btn.hidden = false;
+  });
+  btn.addEventListener("click", async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    btn.hidden = true;
+  });
+  window.addEventListener("appinstalled", () => {
+    btn.hidden = true;
+    deferredPrompt = null;
+  });
+}
+
 async function main() {
   initVisualizers();
   bindControls();
@@ -481,6 +536,7 @@ async function main() {
   });
   restore();
   registerSW();
+  setupInstall();
 }
 
 main();

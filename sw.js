@@ -1,10 +1,11 @@
 // Service worker — cache applicatif pour usage hors-ligne / installation PWA.
-const CACHE = "pulse-v3";
+const CACHE = "pulse-v4";
 const ASSETS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./src/css/styles.css",
+  "./src/css/fonts.css",
   "./src/js/app.js",
   "./src/js/player.js",
   "./src/js/visualizer.js",
@@ -16,6 +17,14 @@ const ASSETS = [
   "./vendor/three.module.js",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
+  "./assets/fonts/anton-latin-400-normal.woff2",
+  "./assets/fonts/archivo-latin-800-normal.woff2",
+  "./assets/fonts/archivo-latin-900-normal.woff2",
+  "./assets/fonts/space-grotesk-latin-400-normal.woff2",
+  "./assets/fonts/space-grotesk-latin-500-normal.woff2",
+  "./assets/fonts/space-grotesk-latin-700-normal.woff2",
+  "./assets/fonts/space-mono-latin-400-normal.woff2",
+  "./assets/fonts/space-mono-latin-700-normal.woff2",
 ];
 
 self.addEventListener("install", (e) => {
@@ -34,19 +43,7 @@ self.addEventListener("fetch", (e) => {
   // blob: (fichiers importés) et données : pas de cache
   if (request.url.startsWith("blob:") || request.url.startsWith("data:")) return;
 
-  // CDN three.js : stale-while-revalidate
-  if (request.url.includes("unpkg.com") || request.url.includes("fonts.")) {
-    e.respondWith(
-      caches.open(CACHE).then(async (cache) => {
-        const cached = await cache.match(request);
-        const network = fetch(request).then((res) => { cache.put(request, res.clone()); return res; }).catch(() => cached);
-        return cached || network;
-      })
-    );
-    return;
-  }
-
-  // app shell : cache-first
+  // app shell (tout est local) : cache-first, repli réseau puis index
   e.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).then((res) => {
       const copy = res.clone();

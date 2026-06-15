@@ -30,6 +30,7 @@ export function renderLibrary(tracks, currentId, onPlay, opts = {}) {
     const card = document.createElement("button");
     card.className = "card" + (t.id === currentId ? " is-playing" : "");
     card.style.setProperty("--card-bg", t.color);
+    card.setAttribute("aria-label", `Lire ${t.title}, ${t.artist}`);
     card.innerHTML = `
       <img class="card__cover" src="${generateCover(t)}" alt="" draggable="false" />
       <div class="card__title">${escapeHtml(t.title)}</div>
@@ -95,13 +96,18 @@ function bindQueueDnD(list, onReorder) {
 
 export function updateModes({ shuffle, repeat }) {
   for (const id of ["#btn-shuffle", "#np-shuffle"]) {
-    $(id).classList.toggle("is-on", !!shuffle);
+    const b = $(id);
+    b.classList.toggle("is-on", !!shuffle);
+    b.setAttribute("aria-pressed", String(!!shuffle));
   }
+  const repeatLabel = { off: "Répéter : désactivé", all: "Répéter : toute la file", one: "Répéter : ce morceau" };
   for (const id of ["#btn-repeat", "#np-repeat"]) {
     const rp = $(id);
     rp.classList.toggle("is-on", repeat !== "off");
     rp.dataset.mode = repeat;
     rp.dataset.ico = repeat === "one" ? "repeat-one" : "repeat";
+    rp.setAttribute("aria-pressed", String(repeat !== "off"));
+    rp.setAttribute("aria-label", repeatLabel[repeat]);
   }
 }
 
@@ -140,6 +146,7 @@ export function updatePlayButton(isPlaying) {
 
 export function updateProgress(time, duration) {
   const pct = duration ? (time / duration) * 100 : 0;
+  const valueText = `${formatTime(time)} sur ${formatTime(duration)}`;
   $("#progress-fill").style.width = pct + "%";
   $("#progress-knob").style.left = pct + "%";
   $("#time-current").textContent = formatTime(time);
@@ -148,11 +155,19 @@ export function updateProgress(time, duration) {
   $("#np-progress-knob").style.left = pct + "%";
   $("#np-time-current").textContent = formatTime(time);
   $("#np-time-total").textContent = formatTime(duration);
+  for (const id of ["#progress-bar", "#np-progress-bar"]) {
+    const bar = $(id);
+    bar.setAttribute("aria-valuenow", Math.round(pct));
+    bar.setAttribute("aria-valuetext", valueText);
+  }
 }
 
 export function updateVolume(v) {
   $("#volume-fill").style.width = v * 100 + "%";
   $("#btn-mute").dataset.ico = v === 0 ? "vol-mute" : "vol";
+  const bar = $("#volume-bar");
+  bar.setAttribute("aria-valuenow", Math.round(v * 100));
+  bar.setAttribute("aria-valuetext", `${Math.round(v * 100)} %`);
 }
 
 export function switchView(view) {
@@ -164,7 +179,12 @@ export function switchView(view) {
   };
   $$(".view").forEach((v) => v.classList.remove("is-active"));
   $(`#view-${view}`)?.classList.add("is-active");
-  $$(".nav__item").forEach((n) => n.classList.toggle("is-active", n.dataset.view === view));
+  $$(".nav__item").forEach((n) => {
+    const active = n.dataset.view === view;
+    n.classList.toggle("is-active", active);
+    if (active) n.setAttribute("aria-current", "page");
+    else n.removeAttribute("aria-current");
+  });
   const [title, sub] = titles[view] || titles.library;
   $("#view-title").textContent = title;
   $("#view-sub").textContent = sub;
