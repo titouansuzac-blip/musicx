@@ -16,8 +16,9 @@ des modules ES natifs servis en statique.
 - **Lecteur audio** : play/pause, suivant/précédent, barre de progression cliquable, volume, muet.
 - **Lecture aléatoire & répétition** : shuffle, et répétition off / toute la file / un seul morceau.
 - **File d'attente** : panneau « À suivre » réorganisable par glisser-déposer, avec saut et retrait.
-- **Animation de lancement** : takeover cinétique (grille en perspective, disque noir, titre géant) à chaque morceau lancé.
-- **Visualiseur 3D réactif** (Three.js) : grille de « pixels » (cubes instanciés) pilotée par un `AnalyserNode`. 3 styles : barres pixel, grille, tunnel.
+- **Animation de lancement** : takeover cinétique (grille en perspective, disque noir, titre géant qui pulse au rythme des basses, texte auto-ajusté) à chaque morceau lancé.
+- **Vue lecture plein écran** : depuis le dock, écran immersif avec visualiseur géant, titre, progression et contrôles (Échap ou ▾ pour réduire).
+- **Visualiseur 3D réactif** (Three.js) : grille de « pixels » (cubes instanciés) pilotée par un `AnalyserNode`, avec mapping logarithmique des fréquences, lissage par colonne (attaque/déclin) et pointes plus claires sur les aigus. 3 styles : barres pixel, grille, tunnel.
 - **Navigation** : sidebar (Bibliothèque, Playlists, Visualiseur, Paramètres), tiroir sur mobile.
 - **Lecture en arrière-plan** : API Media Session (métadonnées + contrôles écran verrouillé).
 - **Persistance** : morceau, position, volume, vue, shuffle/repeat et préférences conservés (`localStorage`).

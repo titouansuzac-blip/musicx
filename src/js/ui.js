@@ -94,11 +94,15 @@ function bindQueueDnD(list, onReorder) {
 }
 
 export function updateModes({ shuffle, repeat }) {
-  $("#btn-shuffle").classList.toggle("is-on", !!shuffle);
-  const rp = $("#btn-repeat");
-  rp.classList.toggle("is-on", repeat !== "off");
-  rp.dataset.mode = repeat;
-  rp.dataset.ico = repeat === "one" ? "repeat-one" : "repeat";
+  for (const id of ["#btn-shuffle", "#np-shuffle"]) {
+    $(id).classList.toggle("is-on", !!shuffle);
+  }
+  for (const id of ["#btn-repeat", "#np-repeat"]) {
+    const rp = $(id);
+    rp.classList.toggle("is-on", repeat !== "off");
+    rp.dataset.mode = repeat;
+    rp.dataset.ico = repeat === "one" ? "repeat-one" : "repeat";
+  }
 }
 
 export function renderPlaylists(playlists, onOpen) {
@@ -124,10 +128,14 @@ export function setNowPlaying(track) {
   $("#dock-artist").textContent = track ? track.artist : "—";
   const cover = $("#dock-cover");
   if (track) cover.style.backgroundImage = `url(${generateCover(track)})`;
+  $("#np-title").textContent = track ? track.title : "—";
+  $("#np-artist").textContent = track ? `${track.artist} · ${track.album}` : "—";
 }
 
 export function updatePlayButton(isPlaying) {
-  $("#btn-play").dataset.ico = isPlaying ? "pause" : "play";
+  const ico = isPlaying ? "pause" : "play";
+  $("#btn-play").dataset.ico = ico;
+  $("#np-play").dataset.ico = ico;
 }
 
 export function updateProgress(time, duration) {
@@ -136,6 +144,10 @@ export function updateProgress(time, duration) {
   $("#progress-knob").style.left = pct + "%";
   $("#time-current").textContent = formatTime(time);
   $("#time-total").textContent = formatTime(duration);
+  $("#np-progress-fill").style.width = pct + "%";
+  $("#np-progress-knob").style.left = pct + "%";
+  $("#np-time-current").textContent = formatTime(time);
+  $("#np-time-total").textContent = formatTime(duration);
 }
 
 export function updateVolume(v) {

@@ -5,7 +5,7 @@ import * as Lib from "./library.js";
 import { loadState, saveState } from "./storage.js";
 import * as UI from "./ui.js";
 import { $, $$ } from "./ui.js";
-import { showLaunch } from "./launch.js";
+import { showLaunch, setBeatSource } from "./launch.js";
 
 const state = loadState();
 const player = new Player();
@@ -20,8 +20,8 @@ let repeat = state.repeat || "off"; // off | all | one
 let searchQuery = "";
 let queueOpen = false;
 
-// ---- Visualiseurs (mini dans le dock + plein écran) ----
-let vizMini = null, vizFull = null;
+// ---- Visualiseurs (mini dock + vue Visualiseur + vue lecture) ----
+let vizMini = null, vizFull = null, vizNp = null;
 
 function initVisualizers() {
   try {
@@ -37,6 +37,13 @@ function ensureFullViz() {
   } catch (e) { console.warn("Visualiseur plein écran indisponible", e); }
 }
 
+function ensureNpViz() {
+  if (vizNp) return;
+  try {
+    vizNp = new Visualizer($("#np-visualizer"), player, { style: state.vizStyle, accent: getAccent() });
+  } catch (e) { console.warn("Visualiseur lecture indisponible", e); }
+}
+
 function getAccent() {
   const t = player.track;
   return t ? t.color : "#ff5a36";
@@ -47,7 +54,28 @@ function applyAccent() {
   UI.setAccent(hex);
   vizMini?.setAccent(hex);
   vizFull?.setAccent(hex);
+  vizNp?.setAccent(hex);
   document.querySelector('meta[name="theme-color"]').setAttribute("content", hex);
+}
+
+// ---- Vue lecture plein écran ----
+let npOpen = false;
+function openNowPlaying() {
+  if (!player.track) return;
+  npOpen = true;
+  const np = $("#nowplaying");
+  np.hidden = false;
+  void np.offsetWidth;
+  np.classList.add("is-open");
+  ensureNpViz();
+  vizNp?.start();
+}
+function closeNowPlaying() {
+  npOpen = false;
+  const np = $("#nowplaying");
+  np.classList.remove("is-open");
+  vizNp?.stop();
+  setTimeout(() => { if (!npOpen) np.hidden = true; }, 360);
 }
 
 // ============================================================
@@ -265,6 +293,17 @@ function bindControls() {
   $("#queue-close").addEventListener("click", () => toggleQueue(false));
   $("#queue-scrim").addEventListener("click", () => toggleQueue(false));
 
+  // Vue lecture plein écran
+  $(".dock__meta").addEventListener("click", openNowPlaying);
+  $("#np-close").addEventListener("click", closeNowPlaying);
+  $("#np-play").addEventListener("click", () => player.toggle());
+  $("#np-next").addEventListener("click", () => next(true));
+  $("#np-prev").addEventListener("click", () => prev(true));
+  $("#np-shuffle").addEventListener("click", toggleShuffle);
+  $("#np-repeat").addEventListener("click", cycleRepeat);
+  $("#np-queue").addEventListener("click", () => toggleQueue());
+  bindScrubber($("#np-progress-bar"), (pct) => player.seek(pct * player.getDuration()));
+
   // Recherche
   const search = $("#search");
   search.addEventListener("input", (e) => {
@@ -318,7 +357,7 @@ function bindControls() {
     const b = e.target.closest("button"); if (!b) return;
     const style = b.dataset.style;
     $$("#viz-style button").forEach((x) => x.classList.toggle("is-active", x === b));
-    vizMini?.setStyle(style); vizFull?.setStyle(style);
+    vizMini?.setStyle(style); vizFull?.setStyle(style); vizNp?.setStyle(style);
     saveState({ vizStyle: style });
   });
   $("#autoplay-next").addEventListener("change", (e) => { state.autoplayNext = e.target.checked; saveState({ autoplayNext: e.target.checked }); });
@@ -330,6 +369,7 @@ function bindControls() {
     if (e.code === "Space") { e.preventDefault(); player.toggle(); }
     if (e.code === "ArrowRight") next(true);
     if (e.code === "ArrowLeft") prev(true);
+    if (e.code === "Escape") { if (npOpen) closeNowPlaying(); else if (queueOpen) toggleQueue(false); }
   });
 }
 
@@ -430,6 +470,7 @@ async function main() {
   initVisualizers();
   bindControls();
   setupMediaSession();
+  setBeatSource(() => player.getBands().bass); // pulsation du lancement
   await Lib.loadStoredFiles().catch(() => {});
   refreshLibrary();
   refreshPlaylists();

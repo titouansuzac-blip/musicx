@@ -70,6 +70,24 @@ export class Player {
     return sum / d.length / 255;
   }
 
+  // Énergie par bande : graves / médiums / aigus (0..1) + niveau global.
+  getBands() {
+    const d = this.getFrequencyData();
+    if (!d) return { bass: 0, mid: 0, treble: 0, level: 0 };
+    const n = d.length;
+    const avg = (a, b) => {
+      let s = 0;
+      for (let i = a; i < b; i++) s += d[i];
+      return (s / Math.max(1, b - a)) / 255;
+    };
+    return {
+      bass: avg(0, Math.max(1, Math.floor(n * 0.12))),
+      mid: avg(Math.floor(n * 0.12), Math.floor(n * 0.45)),
+      treble: avg(Math.floor(n * 0.45), n),
+      level: avg(0, n),
+    };
+  }
+
   async load(track, { autoplay = false, startTime = 0 } = {}) {
     this._ensureCtx();
     this._stopGen();

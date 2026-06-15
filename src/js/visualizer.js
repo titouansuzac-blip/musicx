@@ -48,6 +48,8 @@ export class Visualizer {
   _buildMesh() {
     const { cols, rows } = this._gridDims();
     this.cols = cols; this.rows = rows;
+    this._smooth = new Float32Array(cols); // lissage par colonne
+    this._colVals = new Float32Array(cols);
     const count = cols * rows;
 
     const geo = new THREE.BoxGeometry(0.82, 0.82, 0.82);
@@ -119,6 +121,10 @@ export class Visualizer {
     const data = this.player.getFrequencyData();
     const playing = this.player.isPlaying;
 
+    // Valeurs lissées par colonne, calculées une seule fois par frame.
+    this._colVals = this._colVals || new Float32Array(this.cols);
+    for (let c = 0; c < this.cols; c++) this._colVals[c] = this._sample(data, c);
+
     if (this.style === "bars") this._frameBars(data, playing);
     else if (this.style === "grid") this._frameGrid(data, playing);
     else this._frameTunnel(data, playing);
@@ -129,20 +135,44 @@ export class Visualizer {
     this.renderer.render(this.scene, this.camera);
   }
 
-  _band(data, c) {
+  // Échantillonne+lisse une bande pour la colonne c (mapping logarithmique :
+  // les graves occupent plus de colonnes ; attaque rapide / déclin lent).
+  // À n'appeler qu'une fois par colonne et par frame (mute le lissage).
+  _sample(data, c) {
     if (!data) return 0;
-    const i = Math.floor((c / this.cols) * data.length);
-    return data[i] / 255;
+    const f = c / Math.max(1, this.cols - 1);
+    const i = Math.min(data.length - 1, Math.floor(Math.pow(f, 1.7) * (data.length - 1)));
+    const raw = data[i] / 255;
+    const prev = this._smooth ? this._smooth[c] : raw;
+    const k = raw > prev ? 0.55 : 0.12; // attaque vs déclin
+    const v = prev + (raw - prev) * k;
+    if (this._smooth) this._smooth[c] = v;
+    return v;
   }
 
-  _setCell(i, x, y, z, s, lit) {
+  // Lecture non destructive de la valeur lissée d'une colonne.
+  _band(_data, c) {
+    return this._colVals ? this._colVals[c] || 0 : 0;
+  }
+
+  // Couleur d'une cellule allumée : mélange accent -> blanc selon t (0..1),
+  // pour que les pointes (énergie aiguë) tirent vers le clair.
+  _litColor(t) {
+    const col = this._tmpColor || (this._tmpColor = new THREE.Color());
+    col.copy(this.accent);
+    if (t > 0) col.lerp(this._white || (this._white = new THREE.Color(0xffffff)), t * 0.65);
+    return col;
+  }
+
+  _setCell(i, x, y, z, s, color) {
     this._dummy.position.set(x, y, z);
     this._dummy.scale.setScalar(Math.max(0.04, s));
     this._dummy.updateMatrix();
     this.mesh.setMatrixAt(i, this._dummy.matrix);
-    const col = this._tmpColor || (this._tmpColor = new THREE.Color());
-    if (lit) col.copy(this.accent);
-    else col.setRGB(0.09, 0.09, 0.09);
+    let col;
+    if (color === false) { col = this._dim || (this._dim = new THREE.Color(0.09, 0.09, 0.09)); }
+    else if (color === true || color === undefined) { col = this.accent; }
+    else { col = color; }
     this.mesh.setColorAt?.(i, col);
     const a = this.mesh.instanceColor.array;
     a[i * 3] = col.r; a[i * 3 + 1] = col.g; a[i * 3 + 2] = col.b;
@@ -151,13 +181,15 @@ export class Visualizer {
   _frameBars(data, playing) {
     for (let c = 0; c < this.cols; c++) {
       let amp = this._band(data, c);
-      if (!playing) amp = 0.12 + 0.08 * Math.sin(this.t * 2 + c * 0.5);
+      if (!playing) amp = 0.10 + 0.07 * Math.sin(this.t * 2 + c * 0.5);
       const lit = Math.round(amp * this.rows);
       for (let r = 0; r < this.rows; r++) {
         const i = r * this.cols + c;
         const p = this._basePos[i];
         const on = r < lit;
-        this._setCell(i, p.x, p.y, 0, on ? 0.9 : 0.5, on);
+        // pointe plus claire au sommet de chaque colonne
+        const tip = on ? Math.max(0, (r - lit * 0.55) / Math.max(1, this.rows)) : 0;
+        this._setCell(i, p.x, p.y, 0, on ? 0.92 : 0.5, on ? this._litColor(tip * 2) : false);
       }
     }
   }

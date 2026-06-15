@@ -197,6 +197,41 @@
         <span>Déposez vos fichiers audio</span>
       </div>
     </div>
+
+    <!-- Vue lecture plein écran -->
+    <section class="np" id="nowplaying" hidden aria-label="Lecture en cours">
+      <header class="np__top">
+        <button class="np__close" id="np-close" aria-label="Réduire">▾</button>
+        <span class="np__label">En lecture</span>
+        <button class="np__icon-btn" id="np-queue" aria-label="File d'attente" data-ico="queue"></button>
+      </header>
+
+      <div class="np__stage">
+        <canvas id="np-visualizer"></canvas>
+      </div>
+
+      <div class="np__info">
+        <h2 class="np__title" id="np-title">—</h2>
+        <p class="np__artist" id="np-artist">—</p>
+      </div>
+
+      <div class="np__progress">
+        <span class="progress__time" id="np-time-current">0:00</span>
+        <div class="progress__bar" id="np-progress-bar">
+          <div class="progress__fill" id="np-progress-fill"></div>
+          <div class="progress__knob" id="np-progress-knob"></div>
+        </div>
+        <span class="progress__time" id="np-time-total">0:00</span>
+      </div>
+
+      <div class="np__controls">
+        <button class="ctrl ctrl--small" id="np-shuffle" aria-label="Lecture aléatoire" data-ico="shuffle"></button>
+        <button class="ctrl" id="np-prev" aria-label="Précédent" data-ico="prev"></button>
+        <button class="ctrl ctrl--play np__play" id="np-play" aria-label="Lecture / Pause" data-ico="play"></button>
+        <button class="ctrl" id="np-next" aria-label="Suivant" data-ico="next"></button>
+        <button class="ctrl ctrl--small" id="np-repeat" aria-label="Répéter" data-ico="repeat" data-mode="off"></button>
+      </div>
+    </section>
   </div>
 
   <script type="module" src="./src/js/app.js"></script>
