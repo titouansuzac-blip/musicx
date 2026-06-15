@@ -12,13 +12,17 @@ des modules ES natifs servis en statique.
 ## Fonctionnalités
 
 - **Bibliothèque** : grille de cartes (titre, artiste, album, pochette pixel-art générée).
+- **Recherche** : filtre instantané par titre, artiste ou album.
 - **Lecteur audio** : play/pause, suivant/précédent, barre de progression cliquable, volume, muet.
+- **Lecture aléatoire & répétition** : shuffle, et répétition off / toute la file / un seul morceau.
+- **File d'attente** : panneau « À suivre » réorganisable par glisser-déposer, avec saut et retrait.
+- **Animation de lancement** : takeover cinétique (grille en perspective, disque noir, titre géant) à chaque morceau lancé.
 - **Visualiseur 3D réactif** (Three.js) : grille de « pixels » (cubes instanciés) pilotée par un `AnalyserNode`. 3 styles : barres pixel, grille, tunnel.
 - **Navigation** : sidebar (Bibliothèque, Playlists, Visualiseur, Paramètres), tiroir sur mobile.
 - **Lecture en arrière-plan** : API Media Session (métadonnées + contrôles écran verrouillé).
-- **Persistance** : morceau, position, volume, vue et préférences conservés (`localStorage`).
+- **Persistance** : morceau, position, volume, vue, shuffle/repeat et préférences conservés (`localStorage`).
 - **Démos hors-ligne** : 6 morceaux générés en temps réel par un séquenceur Web Audio (basse, arpège, nappe, batterie) — aucun fichier audio requis.
-- **Import** : ajout de vos propres fichiers audio (via le bouton +).
+- **Import persistant** : ajout de vos fichiers audio via le bouton + ou par glisser-déposer ; les fichiers sont stockés en **IndexedDB** et survivent aux rechargements.
 - **Installable** : manifest + service worker (app shell + Three.js mis en cache).
 
 ## Lancer en local
@@ -47,10 +51,12 @@ musicx/
 └── src/
     ├── css/styles.css      # design system néo-brutaliste
     └── js/
-        ├── app.js          # bootstrap : relie tout
+        ├── app.js          # bootstrap : relie tout (file d'attente, modes…)
         ├── player.js       # moteur Web Audio (génératif + fichier) + analyser
         ├── visualizer.js   # visualiseur 3D Three.js
+        ├── launch.js       # animation de lancement plein écran
         ├── library.js      # morceaux démo, playlists, import, pochettes
+        ├── db.js           # stockage IndexedDB des fichiers importés
         ├── ui.js           # rendu DOM
         └── storage.js      # persistance localStorage
 ```

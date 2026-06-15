@@ -2,6 +2,8 @@
 // Chaque morceau de démo embarque une "recette" musicale jouée par le moteur
 // Web Audio (player.js), pour fonctionner totalement hors-ligne sans assets.
 
+import { putFile, getAllFiles, deleteFile } from "./db.js";
+
 const PALETTE = {
   orange: "#ff5a36",
   purple: "#8b5cf6",
@@ -96,29 +98,70 @@ export function getTrackById(id) { return tracks.find((t) => t.id === id) || nul
 export function onLibraryChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 function emit() { listeners.forEach((fn) => fn(tracks)); }
 
+const PALETTE_VALUES = Object.values(PALETTE);
 let importCounter = 0;
-export function importFiles(fileList) {
+
+function makeFileTrack(rec) {
+  return {
+    id: rec.id,
+    title: rec.title,
+    artist: rec.artist,
+    album: rec.album,
+    color: rec.color,
+    duration: rec.duration || 0, // affiné au chargement par <audio>
+    file: true,
+    url: URL.createObjectURL(rec.blob),
+  };
+}
+
+// Importe des fichiers : persiste le Blob en IndexedDB puis ajoute les pistes.
+export async function importFiles(fileList) {
   const added = [];
   for (const file of fileList) {
     if (!file.type.startsWith("audio/")) continue;
-    const url = URL.createObjectURL(file);
-    const color = Object.values(PALETTE)[importCounter % Object.keys(PALETTE).length];
-    const name = file.name.replace(/\.[^.]+$/, "");
-    const track = {
-      id: `file-${Date.now()}-${importCounter++}`,
-      title: name,
+    const i = importCounter++;
+    const record = {
+      id: `file-${Date.now()}-${i}`,
+      title: file.name.replace(/\.[^.]+$/, ""),
       artist: "Vos fichiers",
       album: "Importé",
-      color,
-      duration: 0, // renseigné au chargement par <audio>
-      file: true,
-      url,
+      color: PALETTE_VALUES[i % PALETTE_VALUES.length],
+      blob: file,
+      duration: 0,
+      addedAt: Date.now(),
     };
+    try { await putFile(record); }
+    catch (e) { console.warn("IndexedDB indisponible — fichier non persistant", e); }
+    const track = makeFileTrack(record);
     tracks = [track, ...tracks];
     added.push(track);
   }
   if (added.length) emit();
   return added;
+}
+
+// Réhydrate les fichiers stockés au démarrage (recrée les URLs d'objet).
+export async function loadStoredFiles() {
+  let recs = [];
+  try { recs = await getAllFiles(); }
+  catch { return []; }
+  if (!recs.length) return [];
+  recs.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
+  importCounter = Math.max(importCounter, recs.length);
+  const stored = recs.map(makeFileTrack);
+  tracks = [...stored, ...DEMO_TRACKS];
+  emit();
+  return stored;
+}
+
+// Supprime une piste importée (révoque l'URL + efface de la base).
+export async function removeTrack(id) {
+  const t = getTrackById(id);
+  if (!t || !t.file) return;
+  if (t.url) URL.revokeObjectURL(t.url);
+  tracks = tracks.filter((x) => x.id !== id);
+  try { await deleteFile(id); } catch {}
+  emit();
 }
 
 // ---- Pochettes pixel-art générées (esthétique des références) ----

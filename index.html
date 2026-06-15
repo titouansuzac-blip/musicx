@@ -85,6 +85,11 @@
 
       <!-- Library view -->
       <section class="view is-active" id="view-library">
+        <div class="searchbar">
+          <span class="searchbar__ico" aria-hidden="true"></span>
+          <input id="search" type="search" placeholder="Rechercher un titre, un artiste, un album…" autocomplete="off" aria-label="Rechercher" />
+          <button class="searchbar__clear" id="search-clear" aria-label="Effacer" hidden>✕</button>
+        </div>
         <div class="grid" id="library-grid"></div>
       </section>
 
@@ -146,9 +151,11 @@
 
       <div class="dock__controls">
         <div class="ctrl-row">
+          <button class="ctrl ctrl--small" id="btn-shuffle" aria-label="Lecture aléatoire" data-ico="shuffle"></button>
           <button class="ctrl" id="btn-prev" aria-label="Précédent" data-ico="prev"></button>
           <button class="ctrl ctrl--play" id="btn-play" aria-label="Lecture / Pause" data-ico="play"></button>
           <button class="ctrl" id="btn-next" aria-label="Suivant" data-ico="next"></button>
+          <button class="ctrl ctrl--small" id="btn-repeat" aria-label="Répéter" data-ico="repeat" data-mode="off"></button>
         </div>
         <div class="progress">
           <span class="progress__time" id="time-current">0:00</span>
@@ -161,6 +168,7 @@
       </div>
 
       <div class="dock__volume">
+        <button class="ctrl ctrl--small" id="btn-queue" aria-label="File d'attente" data-ico="queue"></button>
         <button class="ctrl ctrl--small" id="btn-mute" aria-label="Muet" data-ico="vol"></button>
         <div class="volume">
           <div class="volume__bar" id="volume-bar">
@@ -170,7 +178,25 @@
       </div>
     </footer>
 
+    <!-- File d'attente (À suivre) -->
+    <aside class="queue-panel" id="queue-panel" aria-label="File d'attente">
+      <div class="queue-panel__head">
+        <h2>À suivre</h2>
+        <button class="queue-panel__close" id="queue-close" aria-label="Fermer">✕</button>
+      </div>
+      <ul class="queue__list" id="queue-list"></ul>
+    </aside>
+
     <div class="scrim" id="scrim"></div>
+    <div class="scrim" id="queue-scrim"></div>
+
+    <!-- Zone de dépôt de fichiers -->
+    <div class="dropzone" id="dropzone" aria-hidden="true">
+      <div class="dropzone__box">
+        <span class="dropzone__plus">+</span>
+        <span>Déposez vos fichiers audio</span>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="./src/js/app.js"></script>

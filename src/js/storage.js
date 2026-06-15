@@ -9,6 +9,8 @@ const DEFAULTS = {
   vizStyle: "bars",
   autoplayNext: true,
   bgPixels: true,
+  shuffle: false,
+  repeat: "off", // off | all | one
 };
 
 export function loadState() {

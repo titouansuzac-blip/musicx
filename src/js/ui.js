@@ -15,11 +15,14 @@ export function setAccent(hex) {
   document.documentElement.style.setProperty("--accent", hex);
 }
 
-export function renderLibrary(tracks, currentId, onPlay) {
+export function renderLibrary(tracks, currentId, onPlay, opts = {}) {
   const grid = $("#library-grid");
-  $("#track-count").textContent = `${tracks.length} morceau${tracks.length > 1 ? "x" : ""}`;
+  const total = opts.total ?? tracks.length;
+  $("#track-count").textContent = `${total} morceau${total > 1 ? "x" : ""}`;
   if (!tracks.length) {
-    grid.innerHTML = `<div class="empty">Aucun morceau. Ajoutez des fichiers audio via le bouton +.</div>`;
+    grid.innerHTML = opts.query
+      ? `<div class="empty">Aucun résultat pour « ${escapeHtml(opts.query)} ».</div>`
+      : `<div class="empty">Aucun morceau. Ajoutez des fichiers audio via le bouton + ou par glisser-déposer.</div>`;
     return;
   }
   grid.innerHTML = "";
@@ -31,10 +34,71 @@ export function renderLibrary(tracks, currentId, onPlay) {
       <img class="card__cover" src="${generateCover(t)}" alt="" draggable="false" />
       <div class="card__title">${escapeHtml(t.title)}</div>
       <div class="card__artist">${escapeHtml(t.artist)}</div>
-      <span class="card__badge">▶</span>`;
-    card.addEventListener("click", () => onPlay(t));
+      <span class="card__badge">▶</span>
+      ${t.file ? `<span class="card__del" role="button" aria-label="Supprimer">✕</span>` : ""}`;
+    card.addEventListener("click", (e) => {
+      if (e.target.closest(".card__del")) { e.stopPropagation(); opts.onRemove?.(t); return; }
+      onPlay(t);
+    });
     grid.appendChild(card);
   }
+}
+
+export function renderQueue(queue, currentIndex, getTrackById, handlers) {
+  const list = $("#queue-list");
+  list.innerHTML = "";
+  if (!queue.length) {
+    list.innerHTML = `<li class="queue__empty">File vide</li>`;
+    return;
+  }
+  queue.forEach((id, i) => {
+    const t = getTrackById(id);
+    if (!t) return;
+    const li = document.createElement("li");
+    li.className = "queue__item" + (i === currentIndex ? " is-current" : "");
+    li.draggable = true;
+    li.dataset.index = i;
+    li.innerHTML = `
+      <span class="queue__grip" aria-hidden="true">⋮⋮</span>
+      <img class="queue__cover" src="${generateCover(t, 64)}" alt="" draggable="false" />
+      <span class="queue__meta">
+        <span class="queue__title">${escapeHtml(t.title)}</span>
+        <span class="queue__artist">${escapeHtml(t.artist)}</span>
+      </span>
+      ${i === currentIndex ? `<span class="queue__eq" aria-hidden="true">♪</span>` : `<button class="queue__del" aria-label="Retirer de la file">✕</button>`}`;
+    li.addEventListener("click", (e) => {
+      if (e.target.closest(".queue__del")) return;
+      handlers.onJump(i);
+    });
+    li.querySelector(".queue__del")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      handlers.onRemove(i);
+    });
+    list.appendChild(li);
+  });
+  bindQueueDnD(list, handlers.onReorder);
+}
+
+function bindQueueDnD(list, onReorder) {
+  let dragIndex = null;
+  list.querySelectorAll(".queue__item").forEach((li) => {
+    li.addEventListener("dragstart", () => { dragIndex = +li.dataset.index; li.classList.add("dragging"); });
+    li.addEventListener("dragend", () => { li.classList.remove("dragging"); dragIndex = null; });
+    li.addEventListener("dragover", (e) => e.preventDefault());
+    li.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const to = +li.dataset.index;
+      if (dragIndex != null && dragIndex !== to) onReorder(dragIndex, to);
+    });
+  });
+}
+
+export function updateModes({ shuffle, repeat }) {
+  $("#btn-shuffle").classList.toggle("is-on", !!shuffle);
+  const rp = $("#btn-repeat");
+  rp.classList.toggle("is-on", repeat !== "off");
+  rp.dataset.mode = repeat;
+  rp.dataset.ico = repeat === "one" ? "repeat-one" : "repeat";
 }
 
 export function renderPlaylists(playlists, onOpen) {

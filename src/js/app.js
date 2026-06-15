@@ -10,9 +10,15 @@ import { showLaunch } from "./launch.js";
 const state = loadState();
 const player = new Player();
 
-// File d'attente courante
-let queue = Lib.getTracks().map((t) => t.id);
+// File d'attente : `queue` est l'ordre de lecture effectif (ids).
+// `baseQueue` mémorise l'ordre avant mélange pour pouvoir le restaurer.
+let queue = [];
+let baseQueue = [];
 let queueIndex = 0;
+let shuffle = !!state.shuffle;
+let repeat = state.repeat || "off"; // off | all | one
+let searchQuery = "";
+let queueOpen = false;
 
 // ---- Visualiseurs (mini dans le dock + plein écran) ----
 let vizMini = null, vizFull = null;
@@ -45,47 +51,160 @@ function applyAccent() {
 }
 
 // ============================================================
-// Lecture
+// Lecture & file d'attente
 // ============================================================
-function playTrack(track, { autoplay = true, startTime = 0, launch = false } = {}) {
-  queueIndex = Math.max(0, queue.indexOf(track.id));
-  player.load(track, { autoplay, startTime });
+function currentId() { return queue[queueIndex]; }
+
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Mélange `baseQueue` en gardant le morceau courant en tête.
+function applyShuffle(keepId) {
+  const rest = baseQueue.filter((id) => id !== keepId);
+  shuffleInPlace(rest);
+  queue = keepId != null && baseQueue.includes(keepId) ? [keepId, ...rest] : rest;
+}
+
+// Définit une nouvelle file à partir d'une liste, démarrant sur startId.
+function setQueue(ids, startId) {
+  baseQueue = ids.slice();
+  queue = ids.slice();
+  if (shuffle) applyShuffle(startId);
+  queueIndex = Math.max(0, queue.indexOf(startId));
+}
+
+function playCurrent(launch) {
+  const t = Lib.getTrackById(currentId());
+  if (!t) return;
+  player.load(t, { autoplay: true });
   applyAccent();
   refreshLibrary();
   updateMediaSession();
-  if (launch) showLaunch(track);
+  renderQueuePanel();
+  if (launch) showLaunch(t);
 }
 
-function playByIndex(i, launch = false) {
+function playFromList(ids, startId, launch = true) {
+  setQueue(ids, startId);
+  playCurrent(launch);
+}
+
+// auto = enchaînement automatique (fin de morceau) ; sinon action manuelle.
+function advance(auto, launch) {
   if (!queue.length) return;
-  queueIndex = (i + queue.length) % queue.length;
-  const t = Lib.getTrackById(queue[queueIndex]);
-  if (t) playTrack(t, { launch });
+  let i = queueIndex + 1;
+  if (i >= queue.length) {
+    if (repeat === "all" || !auto) i = 0; // les actions manuelles bouclent
+    else { player.pause(); return; }      // fin de file en lecture auto
+  }
+  queueIndex = i;
+  playCurrent(launch);
 }
 
-function next(launch = false) { playByIndex(queueIndex + 1, launch); }
+function next(launch = false) { advance(false, launch); }
 function prev(launch = false) {
   if (player.getCurrentTime() > 3) { player.seek(0); return; }
-  playByIndex(queueIndex - 1, launch);
+  if (!queue.length) return;
+  queueIndex = (queueIndex - 1 + queue.length) % queue.length;
+  playCurrent(launch);
+}
+
+function toggleShuffle() {
+  shuffle = !shuffle;
+  const cur = currentId();
+  if (shuffle) applyShuffle(cur);
+  else queue = baseQueue.slice();
+  queueIndex = Math.max(0, queue.indexOf(cur));
+  saveState({ shuffle });
+  UI.updateModes({ shuffle, repeat });
+  renderQueuePanel();
+}
+
+function cycleRepeat() {
+  repeat = repeat === "off" ? "all" : repeat === "all" ? "one" : "off";
+  saveState({ repeat });
+  UI.updateModes({ shuffle, repeat });
+}
+
+// ---- Manipulation de la file depuis le panneau ----
+function renderQueuePanel() {
+  UI.renderQueue(queue, queueIndex, Lib.getTrackById, {
+    onJump: (i) => { queueIndex = i; playCurrent(true); },
+    onRemove: (i) => removeFromQueue(i),
+    onReorder: (from, to) => reorderQueue(from, to),
+  });
+}
+
+function removeFromQueue(i) {
+  const cur = currentId();
+  if (queue[i] === cur) return; // on ne retire pas le morceau en cours
+  queue.splice(i, 1);
+  queueIndex = queue.indexOf(cur);
+  if (!shuffle) baseQueue = queue.slice();
+  renderQueuePanel();
+}
+
+function reorderQueue(from, to) {
+  const cur = currentId();
+  const [id] = queue.splice(from, 1);
+  queue.splice(to, 0, id);
+  queueIndex = queue.indexOf(cur);
+  if (!shuffle) baseQueue = queue.slice();
+  renderQueuePanel();
+}
+
+// Garde la file cohérente après un changement de bibliothèque (suppression).
+function syncQueueWithLibrary() {
+  const ids = new Set(Lib.getTracks().map((t) => t.id));
+  const cur = currentId();
+  queue = queue.filter((id) => ids.has(id));
+  baseQueue = baseQueue.filter((id) => ids.has(id));
+  queueIndex = Math.max(0, queue.indexOf(cur));
+  renderQueuePanel();
 }
 
 // ============================================================
 // Rendu
 // ============================================================
+function visibleTracks() {
+  const all = Lib.getTracks();
+  if (!searchQuery) return all;
+  const q = searchQuery.toLowerCase();
+  return all.filter((t) => `${t.title} ${t.artist} ${t.album}`.toLowerCase().includes(q));
+}
+
 function refreshLibrary() {
-  UI.renderLibrary(Lib.getTracks(), player.track?.id, (t) => {
-    queue = Lib.getTracks().map((x) => x.id);
-    playTrack(t, { launch: true });
+  const list = visibleTracks();
+  UI.renderLibrary(list, player.track?.id, (t) => {
+    playFromList(list.map((x) => x.id), t.id, true);
+  }, {
+    total: Lib.getTracks().length,
+    query: searchQuery,
+    onRemove: (t) => handleRemove(t),
   });
+}
+
+async function handleRemove(track) {
+  const wasCurrent = currentId() === track.id;
+  if (wasCurrent) player.pause();
+  await Lib.removeTrack(track.id); // émet -> syncQueueWithLibrary ajuste la file
+  if (wasCurrent) {
+    const nt = Lib.getTrackById(currentId());
+    if (nt) { player.load(nt, { autoplay: false }); applyAccent(); }
+  }
 }
 
 function refreshPlaylists() {
   UI.renderPlaylists(Lib.PLAYLISTS, (pl, tracks) => {
     if (!tracks.length) return;
-    queue = pl.trackIds.slice();
-    playTrack(tracks[0], { launch: true });
+    playFromList(pl.trackIds.slice(), pl.trackIds[0], true);
     UI.switchView("library");
-    state.view = "library"; saveState({ view: "library" });
+    saveState({ view: "library" });
   });
 }
 
@@ -104,7 +223,8 @@ player.on("timeupdate", ({ time, duration }) => {
 });
 player.on("volume", (v) => { UI.updateVolume(v); saveState({ volume: v }); });
 player.on("ended", () => {
-  if (state.autoplayNext) next();
+  if (repeat === "one") { player.seek(0); player.play(); return; }
+  if (state.autoplayNext) advance(true, false);
   else UI.updatePlayButton(false);
 });
 
@@ -137,6 +257,25 @@ function bindControls() {
   $("#btn-play").addEventListener("click", () => player.toggle());
   $("#btn-next").addEventListener("click", () => next(true));
   $("#btn-prev").addEventListener("click", () => prev(true));
+  $("#btn-shuffle").addEventListener("click", toggleShuffle);
+  $("#btn-repeat").addEventListener("click", cycleRepeat);
+
+  // File d'attente
+  $("#btn-queue").addEventListener("click", () => toggleQueue());
+  $("#queue-close").addEventListener("click", () => toggleQueue(false));
+  $("#queue-scrim").addEventListener("click", () => toggleQueue(false));
+
+  // Recherche
+  const search = $("#search");
+  search.addEventListener("input", (e) => {
+    searchQuery = e.target.value.trim();
+    $("#search-clear").hidden = !searchQuery;
+    refreshLibrary();
+  });
+  $("#search-clear").addEventListener("click", () => {
+    search.value = ""; searchQuery = ""; $("#search-clear").hidden = true;
+    refreshLibrary(); search.focus();
+  });
 
   // Barre de progression (clic + glissé)
   bindScrubber($("#progress-bar"), (pct) => player.seek(pct * player.getDuration()));
@@ -165,15 +304,14 @@ function bindControls() {
   });
   $("#scrim").addEventListener("click", closeSidebar);
 
-  // Import de fichiers
-  $("#file-input").addEventListener("change", (e) => {
-    const added = Lib.importFiles(e.target.files);
-    if (added.length) {
-      queue = Lib.getTracks().map((t) => t.id);
-      playTrack(added[0], { launch: true });
-    }
+  // Import de fichiers (bouton)
+  $("#file-input").addEventListener("change", async (e) => {
+    await addFiles(e.target.files);
     e.target.value = "";
   });
+
+  // Import par glisser-déposer
+  bindDropzone();
 
   // Paramètres
   $("#viz-style").addEventListener("click", (e) => {
@@ -214,27 +352,70 @@ function closeSidebar() {
   $("#scrim").classList.remove("is-open");
 }
 
+function toggleQueue(force) {
+  queueOpen = force === undefined ? !queueOpen : force;
+  $("#queue-panel").classList.toggle("is-open", queueOpen);
+  $("#queue-scrim").classList.toggle("is-open", queueOpen);
+  $("#btn-queue").classList.toggle("is-on", queueOpen);
+  if (queueOpen) renderQueuePanel();
+}
+
+async function addFiles(fileList) {
+  const added = await Lib.importFiles(fileList);
+  if (added.length) {
+    playFromList(Lib.getTracks().map((t) => t.id), added[0].id, true);
+  }
+  return added;
+}
+
+function bindDropzone() {
+  const dz = $("#dropzone");
+  let depth = 0;
+  const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes("Files");
+  window.addEventListener("dragenter", (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); depth++; dz.classList.add("is-active");
+  });
+  window.addEventListener("dragover", (e) => { if (hasFiles(e)) e.preventDefault(); });
+  window.addEventListener("dragleave", (e) => {
+    if (!hasFiles(e)) return;
+    depth = Math.max(0, depth - 1);
+    if (depth === 0) dz.classList.remove("is-active");
+  });
+  window.addEventListener("drop", async (e) => {
+    if (!e.dataTransfer?.files?.length) return;
+    e.preventDefault();
+    depth = 0; dz.classList.remove("is-active");
+    await addFiles(e.dataTransfer.files);
+  });
+}
+
 // ============================================================
 // Init
 // ============================================================
 function restore() {
   player.setVolume(state.volume);
   UI.updateVolume(state.volume);
+  UI.updateModes({ shuffle, repeat });
   if (state.vizStyle) {
     $$("#viz-style button").forEach((b) => b.classList.toggle("is-active", b.dataset.style === state.vizStyle));
   }
   $("#autoplay-next").checked = state.autoplayNext;
   $("#bg-pixels").checked = state.bgPixels;
 
-  const t = state.trackId ? Lib.getTrackById(state.trackId) : null;
-  const first = t || Lib.getTracks()[0];
+  // File initiale = bibliothèque complète
+  const all = Lib.getTracks().map((t) => t.id);
+  const saved = state.trackId ? Lib.getTrackById(state.trackId) : null;
+  const first = saved || Lib.getTracks()[0];
+  setQueue(all, first ? first.id : null);
+
   if (first) {
-    queueIndex = queue.indexOf(first.id);
     // chargé en pause, reprise possible à la position sauvegardée
-    player.load(first, { autoplay: false, startTime: t ? state.time : 0 });
+    player.load(first, { autoplay: false, startTime: saved ? state.time : 0 });
     applyAccent();
-    UI.updateProgress(t ? state.time : 0, first.duration);
+    UI.updateProgress(saved ? state.time : 0, first.duration);
   }
+  renderQueuePanel();
   UI.switchView(state.view || "library");
   if (state.view === "visual") { ensureFullViz(); vizFull?.start(); }
 }
@@ -245,13 +426,18 @@ function registerSW() {
   }
 }
 
-function main() {
+async function main() {
   initVisualizers();
   bindControls();
   setupMediaSession();
+  await Lib.loadStoredFiles().catch(() => {});
   refreshLibrary();
   refreshPlaylists();
-  Lib.onLibraryChange(() => { refreshLibrary(); refreshPlaylists(); });
+  Lib.onLibraryChange(() => {
+    refreshLibrary();
+    refreshPlaylists();
+    syncQueueWithLibrary();
+  });
   restore();
   registerSW();
 }
