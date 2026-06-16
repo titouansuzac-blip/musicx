@@ -146,7 +146,15 @@ export class Player {
 
     if (this.mode === "file") {
       this._ensureEl();
-      await this.audioEl.play();
+      try {
+        await this.audioEl.play();
+      } catch {
+        // iOS bloque le démarrage hors geste utilisateur (ex. après un import).
+        // On reste en pause, prêt à démarrer au prochain appui sur lecture.
+        this.isPlaying = false;
+        this.emit("pause");
+        return;
+      }
     } else {
       this._ensureCtx();
       if (this.ctx.state === "suspended") await this.ctx.resume();

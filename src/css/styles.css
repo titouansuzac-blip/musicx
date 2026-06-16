@@ -180,8 +180,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   padding: calc(18px + env(safe-area-inset-top)) var(--main-pad) 14px;
   box-shadow: 0 1px 0 var(--line);
 }
-.topbar__menu { display: none; flex-direction: column; gap: 4px; padding: 8px; }
+.topbar__menu { display: none; flex-direction: column; gap: 4px; padding: 8px; flex-shrink: 0; }
 .topbar__menu span { width: 22px; height: 3px; background: var(--ink); border-radius: 2px; }
+.topbar__title { min-width: 0; }
 .topbar__title h1 {
   font-family: var(--font-display);
   font-weight: 900;
@@ -197,6 +198,30 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   padding: 8px 14px;
   background: var(--ink); color: var(--paper);
   border-radius: 999px;
+}
+
+/* Bouton « Ajouter » toujours visible dans l'en-tête (accessible sur mobile) */
+.topbar__add {
+  display: inline-flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+  padding: 9px 16px;
+  background: var(--accent);
+  color: var(--ink);
+  border: var(--border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-display); font-weight: 800; font-size: 14px;
+  cursor: pointer;
+  transition: transform .1s, box-shadow .1s, filter .15s;
+}
+.topbar__add:hover { filter: brightness(1.05); }
+.topbar__add:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.topbar__add-plus { font-size: 20px; line-height: 1; }
+
+@media (max-width: 520px) {
+  .topbar__add { padding: 9px 12px; }
+  .topbar__add-label { display: none; } /* garde un "+" compact sur petit écran */
+  .topbar__add-plus { font-size: 22px; }
 }
 
 /* Views */
@@ -470,6 +495,16 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .app { --main-pad: 16px; }
   .grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
   .main { padding: 0 var(--main-pad) 30px; }
+
+  /* En-tête : le titre cède la place pour que le badge et « Ajouter » tiennent */
+  .topbar { gap: 10px; }
+  .topbar__title { flex: 1 1 auto; min-width: 0; }
+  .topbar__title h1 {
+    font-size: clamp(22px, 6.5vw, 32px);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .topbar__title p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar__badge { padding: 7px 10px; }
 }
 
 /* ============================================================
