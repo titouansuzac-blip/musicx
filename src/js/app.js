@@ -262,6 +262,11 @@ player.on("pause", () => { UI.updatePlayButton(false); navigator.mediaSession &&
 player.on("timeupdate", ({ time, duration }) => {
   UI.updateProgress(time, duration);
   saveState({ trackId: player.track?.id, time });
+  if ("mediaSession" in navigator && "setPositionState" in navigator.mediaSession && duration) {
+    try {
+      navigator.mediaSession.setPositionState({ duration, position: Math.min(time, duration), playbackRate: 1 });
+    } catch {}
+  }
 });
 player.on("volume", (v) => { UI.updateVolume(v); saveState({ volume: v }); });
 player.on("ended", () => {
