@@ -1,5 +1,5 @@
 // Service worker — cache applicatif pour usage hors-ligne / installation PWA.
-const CACHE = "pulse-v10";
+const CACHE = "pulse-v11";
 const ASSETS = [
   "./",
   "./index.html",
