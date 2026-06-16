@@ -677,6 +677,35 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   font-size: 12px; display: grid; place-items: center;
 }
 
+/* Barre de tri */
+.sortbar {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 20px;
+}
+.sortbar__label {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .12em;
+  color: rgba(13,13,13,.55);
+}
+#sort-select {
+  font-family: var(--font-body);
+  font-weight: 700; font-size: 14px;
+  color: var(--ink);
+  padding: 9px 36px 9px 14px;
+  border: var(--border);
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+#sort-select:focus-visible { box-shadow: 4px 4px 0 var(--accent); }
+
 /* ============================================================
    États shuffle / repeat
    ============================================================ */

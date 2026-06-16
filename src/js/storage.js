@@ -11,6 +11,7 @@ const DEFAULTS = {
   bgPixels: true,
   shuffle: false,
   repeat: "off", // off | all | one
+  sortKey: "recent", // recent | title | artist | album
 };
 
 export function loadState() {
