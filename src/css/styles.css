@@ -79,7 +79,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   flex-direction: column;
   padding: calc(22px + env(safe-area-inset-top)) 18px calc(22px + env(safe-area-inset-bottom));
   gap: 22px;
-  z-index: 40;
+  z-index: 60;
   border-right: var(--border);
   overflow-y: auto;
 }
@@ -303,6 +303,26 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   color: rgba(13,13,13,.6);
 }
 
+/* En-tête de groupe (tri par album / artiste) */
+.group__head {
+  grid-column: 1 / -1;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 7px 16px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(16px, 4vw, 22px);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  background: var(--accent);
+  border: var(--border);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.group__head:first-child { margin-top: 0; }
+
 /* ============================================================
    Visual view
    ============================================================ */
@@ -458,8 +478,11 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   .sidebar.is-open { transform: none; }
   .topbar__menu { display: flex; }
 
+  /* Lecteur collé en bas de l'écran (évite la bande blanche sous le dock
+     dans la PWA iOS) ; le contenu défile derrière, avec marge dédiée. */
   .dock {
-    position: relative;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
     grid-template-columns: 1fr;
     grid-template-rows: auto;
     --dock-h: auto;
@@ -470,6 +493,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
       calc(8px + env(safe-area-inset-bottom))
       max(14px, env(safe-area-inset-left));
   }
+  .main { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
   .dock__viz { display: none; }
   .dock__meta { order: 1; gap: 10px; padding-right: 84px; } /* place pour les boutons en haut à droite */
   .dock__cover { width: 40px; height: 40px; border-radius: 8px; }
@@ -505,7 +529,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 @media (max-width: 520px) {
   .app { --main-pad: 16px; }
   .grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
-  .main { padding: 0 var(--main-pad) 30px; }
+  .main { padding: 0 var(--main-pad) calc(150px + env(safe-area-inset-bottom)); }
 
   /* En-tête : le titre cède la place pour que le badge et « Ajouter » tiennent */
   .topbar { gap: 10px; }

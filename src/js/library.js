@@ -79,18 +79,14 @@ export const DEMO_TRACKS = [
   },
 ];
 
-export const PLAYLISTS = [
-  { id: "pl-focus", title: "Deep Focus", color: PALETTE.blue, trackIds: ["demo-violet", "demo-rose"] },
-  { id: "pl-drive", title: "Night Drive", color: PALETTE.orange, trackIds: ["demo-neon", "demo-cobalt", "demo-lime"] },
-  { id: "pl-all", title: "Tout pulse.", color: PALETTE.purple, trackIds: DEMO_TRACKS.map((t) => t.id) },
-];
+export const PLAYLISTS = [];
 
 export function getScale(name) {
   return SCALES[name] || SCALES.minorPent;
 }
 
-// ---- Bibliothèque vivante (démo + fichiers importés) ----
-let tracks = [...DEMO_TRACKS];
+// ---- Bibliothèque vivante (uniquement les fichiers importés) ----
+let tracks = [];
 const listeners = new Set();
 
 export function getTracks() { return tracks; }
@@ -193,7 +189,7 @@ export async function loadStoredFiles() {
   recs.sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
   importCounter = Math.max(importCounter, recs.length);
   const stored = recs.map(makeFileTrack);
-  tracks = [...stored, ...DEMO_TRACKS];
+  tracks = [...stored];
   emit();
   return stored;
 }
