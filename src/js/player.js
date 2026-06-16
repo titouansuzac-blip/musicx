@@ -1,16 +1,22 @@
 // Moteur audio. Deux modes :
-//  - "gen"  : séquenceur Web Audio génératif (morceaux de démo, hors-ligne)
-//  - "file" : <audio> + MediaElementSource (fichiers importés)
-// Les deux passent par un AnalyserNode partagé pour le visualiseur.
+//  - "gen"  : séquenceur Web Audio génératif (morceaux de démo, hors-ligne).
+//             Passe par un AnalyserNode -> visualiseur réactif au son.
+//  - "file" : <audio> joué EN DIRECT (hors Web Audio). Indispensable sur iOS :
+//             dès qu'un flux passe par le Web Audio, le système le suspend
+//             quand l'écran se verrouille. En jouant l'élément <audio> en
+//             natif, la lecture continue en veille (+ contrôles Media Session).
+//             Le visualiseur est alors décoratif (spectre de synthèse).
 
 import { getScale } from "./library.js";
+
+const BIN_COUNT = 64; // = fftSize 128 / 2
 
 export class Player {
   constructor() {
     this.ctx = null;
     this.master = null;
     this.analyser = null;
-    this.freqData = null;
+    this.freqData = new Uint8Array(BIN_COUNT);
 
     this.track = null;
     this.mode = "gen";
@@ -19,7 +25,7 @@ export class Player {
 
     // file mode
     this.audioEl = null;
-    this.mediaSource = null;
+    this._pendingSeek = 0;
 
     // gen mode
     this._gen = null;
@@ -32,6 +38,25 @@ export class Player {
   on(evt, fn) { (this._listeners[evt] ||= new Set()).add(fn); return this; }
   emit(evt, payload) { this._listeners[evt]?.forEach((fn) => fn(payload)); }
 
+  // Élément <audio> pour les fichiers importés. NON connecté au Web Audio :
+  // joue en natif pour survivre à la mise en veille (iOS).
+  _ensureEl() {
+    if (this.audioEl) return;
+    this.audioEl = new Audio();
+    this.audioEl.preload = "auto";
+    this.audioEl.volume = this.volume;
+    this.audioEl.addEventListener("ended", () => this.emit("ended"));
+    this.audioEl.addEventListener("loadedmetadata", () => {
+      if (this.track) this.track.duration = this.audioEl.duration || this.track.duration;
+      if (this._pendingSeek) {
+        try { this.audioEl.currentTime = this._pendingSeek; } catch {}
+        this._pendingSeek = 0;
+      }
+      this.emit("trackchange", this.track);
+    });
+  }
+
+  // Contexte Web Audio : créé uniquement pour le séquenceur génératif.
   _ensureCtx() {
     if (this.ctx) return;
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -40,26 +65,34 @@ export class Player {
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 128;
     this.analyser.smoothingTimeConstant = 0.8;
-    this.freqData = new Uint8Array(this.analyser.frequencyBinCount);
     this.master.connect(this.analyser);
     this.analyser.connect(this.ctx.destination);
-
-    this.audioEl = new Audio();
-    this.audioEl.crossOrigin = "anonymous";
-    this.audioEl.preload = "auto";
-    this.mediaSource = this.ctx.createMediaElementSource(this.audioEl);
-    this.mediaSource.connect(this.master);
-    this.audioEl.addEventListener("ended", () => this.emit("ended"));
-    this.audioEl.addEventListener("loadedmetadata", () => {
-      if (this.track) this.track.duration = this.audioEl.duration || this.track.duration;
-      this.emit("trackchange", this.track);
-    });
   }
 
   getFrequencyData() {
-    if (!this.analyser) return null;
+    if (this.mode === "file") { this._fillDecorative(); return this.freqData; }
+    if (!this.analyser) return this.freqData; // que des zéros tant que pas de ctx
     this.analyser.getByteFrequencyData(this.freqData);
     return this.freqData;
+  }
+
+  // Spectre de synthèse pour les fichiers (pas d'analyse possible hors Web Audio).
+  // Anime tant que ça joue, retombe doucement en pause.
+  _fillDecorative() {
+    const d = this.freqData;
+    const n = d.length;
+    if (!this.isPlaying) {
+      for (let i = 0; i < n; i++) d[i] = Math.max(0, d[i] - 12);
+      return;
+    }
+    const t = this.audioEl?.currentTime || 0;
+    for (let i = 0; i < n; i++) {
+      const f = i / n;
+      const env = Math.pow(1 - f, 1.3); // plus d'énergie dans les graves
+      const w = Math.sin(t * (2 + i * 0.25) + i * 0.7) * Math.sin(t * 1.7 + i * 0.13);
+      const v = env * (0.35 + 0.65 * Math.abs(w));
+      d[i] = Math.max(0, Math.min(255, v * 230));
+    }
   }
 
   getLevel() {
@@ -89,15 +122,17 @@ export class Player {
   }
 
   async load(track, { autoplay = false, startTime = 0 } = {}) {
-    this._ensureCtx();
     this._stopGen();
     this.track = track;
     this.mode = track.file ? "file" : "gen";
 
     if (this.mode === "file") {
+      this._ensureEl();
+      this._pendingSeek = startTime || 0;
       this.audioEl.src = track.url;
-      this.audioEl.currentTime = startTime || 0;
+      this.audioEl.load();
     } else {
+      this._ensureCtx();
       this._gen = this._buildGen(track, startTime || 0);
     }
 
@@ -108,12 +143,13 @@ export class Player {
 
   async play() {
     if (!this.track) return;
-    this._ensureCtx();
-    if (this.ctx.state === "suspended") await this.ctx.resume();
 
     if (this.mode === "file") {
+      this._ensureEl();
       await this.audioEl.play();
     } else {
+      this._ensureCtx();
+      if (this.ctx.state === "suspended") await this.ctx.resume();
       const g = this._gen;
       g.ctxStart = this.ctx.currentTime;
       g.nextNoteTime = this.ctx.currentTime + 0.05;
@@ -127,7 +163,7 @@ export class Player {
 
   pause() {
     if (this.mode === "file") {
-      this.audioEl.pause();
+      this.audioEl?.pause();
     } else if (this._gen) {
       this._gen.offset = this.getCurrentTime();
       clearInterval(this._genTimer);
@@ -158,7 +194,8 @@ export class Player {
 
   setVolume(v) {
     this.volume = Math.max(0, Math.min(1, v));
-    if (this.master) this.master.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.01);
+    if (this.audioEl) this.audioEl.volume = this.volume;
+    if (this.master && this.ctx) this.master.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.01);
     this.emit("volume", this.volume);
   }
 
