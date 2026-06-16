@@ -15,33 +15,47 @@ export function setAccent(hex) {
   document.documentElement.style.setProperty("--accent", hex);
 }
 
+function makeCard(t, currentId, onPlay, opts) {
+  const card = document.createElement("button");
+  card.className = "card" + (t.id === currentId ? " is-playing" : "");
+  card.style.setProperty("--card-bg", t.color);
+  card.setAttribute("aria-label", `Lire ${t.title}, ${t.artist}`);
+  card.innerHTML = `
+    <img class="card__cover" src="${generateCover(t)}" alt="" draggable="false" />
+    <div class="card__title">${escapeHtml(t.title)}</div>
+    <div class="card__artist">${escapeHtml(t.artist)}</div>
+    <span class="card__badge">▶</span>
+    ${t.file ? `<span class="card__del" role="button" aria-label="Supprimer">✕</span>` : ""}`;
+  card.addEventListener("click", (e) => {
+    if (e.target.closest(".card__del")) { e.stopPropagation(); opts.onRemove?.(t); return; }
+    onPlay(t);
+  });
+  return card;
+}
+
 export function renderLibrary(tracks, currentId, onPlay, opts = {}) {
   const grid = $("#library-grid");
-  const total = opts.total ?? tracks.length;
-  $("#track-count").textContent = `${total} morceau${total > 1 ? "x" : ""}`;
   if (!tracks.length) {
     grid.innerHTML = opts.query
       ? `<div class="empty">Aucun résultat pour « ${escapeHtml(opts.query)} ».</div>`
-      : `<div class="empty">Aucun morceau. Ajoutez des fichiers audio via le bouton + ou par glisser-déposer.</div>`;
+      : `<div class="empty">Aucun morceau. Ajoutez vos fichiers audio via le bouton + ou par glisser-déposer.</div>`;
     return;
   }
   grid.innerHTML = "";
+  const groupBy = opts.groupBy; // "album" | "artist" | undefined
+  let lastKey = null;
   for (const t of tracks) {
-    const card = document.createElement("button");
-    card.className = "card" + (t.id === currentId ? " is-playing" : "");
-    card.style.setProperty("--card-bg", t.color);
-    card.setAttribute("aria-label", `Lire ${t.title}, ${t.artist}`);
-    card.innerHTML = `
-      <img class="card__cover" src="${generateCover(t)}" alt="" draggable="false" />
-      <div class="card__title">${escapeHtml(t.title)}</div>
-      <div class="card__artist">${escapeHtml(t.artist)}</div>
-      <span class="card__badge">▶</span>
-      ${t.file ? `<span class="card__del" role="button" aria-label="Supprimer">✕</span>` : ""}`;
-    card.addEventListener("click", (e) => {
-      if (e.target.closest(".card__del")) { e.stopPropagation(); opts.onRemove?.(t); return; }
-      onPlay(t);
-    });
-    grid.appendChild(card);
+    if (groupBy) {
+      const key = String(t[groupBy] || "—").trim() || "—";
+      if (key !== lastKey) {
+        const h = document.createElement("h3");
+        h.className = "group__head";
+        h.textContent = key;
+        grid.appendChild(h);
+        lastKey = key;
+      }
+    }
+    grid.appendChild(makeCard(t, currentId, onPlay, opts));
   }
 }
 

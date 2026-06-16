@@ -236,11 +236,12 @@ function visibleTracks() {
 
 function refreshLibrary() {
   const list = visibleTracks();
+  const groupBy = sortKey === "album" || sortKey === "artist" ? sortKey : undefined;
   UI.renderLibrary(list, player.track?.id, (t) => {
     playFromList(list.map((x) => x.id), t.id, true);
   }, {
-    total: Lib.getTracks().length,
     query: searchQuery,
+    groupBy,
     onRemove: (t) => handleRemove(t),
   });
 }
@@ -516,8 +517,9 @@ function restore() {
     UI.updateProgress(saved ? state.time : 0, first.duration);
   }
   renderQueuePanel();
-  UI.switchView(state.view || "library");
-  if (state.view === "visual") { ensureFullViz(); vizFull?.start(); }
+  const initialView = state.view === "playlists" ? "library" : (state.view || "library");
+  UI.switchView(initialView);
+  if (initialView === "visual") { ensureFullViz(); vizFull?.start(); }
 }
 
 function registerSW() {
