@@ -114,11 +114,23 @@ function makeFileTrack(rec) {
   };
 }
 
+const AUDIO_EXT = /\.(mp3|m4a|m4b|mp4|aac|wav|wave|aif|aiff|aifc|flac|caf|alac|oga|ogg|opus|wma|3gp)$/i;
+
+// Vrai si le fichier est (probablement) audio. iOS laisse souvent file.type
+// vide pour les fichiers venant de Fichiers/iCloud : on se rabat sur
+// l'extension, et on accepte par défaut quand le type est inconnu.
+function isAudioFile(file) {
+  const t = (file.type || "").toLowerCase();
+  if (t.startsWith("audio/")) return true;
+  if (AUDIO_EXT.test(file.name)) return true;
+  return t === "";
+}
+
 // Importe des fichiers : persiste le Blob en IndexedDB puis ajoute les pistes.
 export async function importFiles(fileList) {
   const added = [];
   for (const file of fileList) {
-    if (!file.type.startsWith("audio/")) continue;
+    if (!isAudioFile(file)) continue;
     const i = importCounter++;
     const record = {
       id: `file-${Date.now()}-${i}`,
