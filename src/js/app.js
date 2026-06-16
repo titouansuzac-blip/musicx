@@ -18,6 +18,7 @@ let queueIndex = 0;
 let shuffle = !!state.shuffle;
 let repeat = state.repeat || "off"; // off | all | one
 let searchQuery = "";
+let sortKey = state.sortKey || "recent"; // recent | title | artist | album
 let queueOpen = false;
 
 // ---- Visualiseurs (mini dock + vue Visualiseur + vue lecture) ----
@@ -213,11 +214,24 @@ function syncQueueWithLibrary() {
 // ============================================================
 // Rendu
 // ============================================================
+function sortTracks(list) {
+  if (sortKey === "recent") return list;
+  const c = (x, y) => String(x || "").localeCompare(String(y || ""), "fr", { sensitivity: "base", numeric: true });
+  const cmp = {
+    title: (a, b) => c(a.title, b.title),
+    artist: (a, b) => c(a.artist, b.artist) || c(a.album, b.album) || c(a.title, b.title),
+    album: (a, b) => c(a.album, b.album) || c(a.title, b.title),
+  }[sortKey];
+  return cmp ? [...list].sort(cmp) : list;
+}
+
 function visibleTracks() {
-  const all = Lib.getTracks();
-  if (!searchQuery) return all;
-  const q = searchQuery.toLowerCase();
-  return all.filter((t) => `${t.title} ${t.artist} ${t.album}`.toLowerCase().includes(q));
+  let all = Lib.getTracks();
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    all = all.filter((t) => `${t.title} ${t.artist} ${t.album}`.toLowerCase().includes(q));
+  }
+  return sortTracks(all);
 }
 
 function refreshLibrary() {
@@ -332,6 +346,13 @@ function bindControls() {
   $("#search-clear").addEventListener("click", () => {
     search.value = ""; searchQuery = ""; $("#search-clear").hidden = true;
     refreshLibrary(); search.focus();
+  });
+
+  // Tri de la bibliothèque
+  $("#sort-select").addEventListener("change", (e) => {
+    sortKey = e.target.value;
+    saveState({ sortKey });
+    refreshLibrary();
   });
 
   // Barre de progression (clic + glissé + clavier)
@@ -480,6 +501,7 @@ function restore() {
   }
   $("#autoplay-next").checked = state.autoplayNext;
   $("#bg-pixels").checked = state.bgPixels;
+  $("#sort-select").value = sortKey;
 
   // File initiale = bibliothèque complète
   const all = Lib.getTracks().map((t) => t.id);

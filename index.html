@@ -98,6 +98,15 @@
           <input id="search" type="search" placeholder="Rechercher un titre, un artiste, un album…" autocomplete="off" aria-label="Rechercher" />
           <button class="searchbar__clear" id="search-clear" aria-label="Effacer" hidden>✕</button>
         </div>
+        <div class="sortbar">
+          <span class="sortbar__label">Trier</span>
+          <select id="sort-select" aria-label="Trier les morceaux">
+            <option value="recent">Récents</option>
+            <option value="title">Titre</option>
+            <option value="artist">Artiste</option>
+            <option value="album">Album</option>
+          </select>
+        </div>
         <div class="grid" id="library-grid"></div>
       </section>
 

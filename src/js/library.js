@@ -101,12 +101,43 @@ function emit() { listeners.forEach((fn) => fn(tracks)); }
 const PALETTE_VALUES = Object.values(PALETTE);
 let importCounter = 0;
 
+// Déduit artiste / album / titre depuis un nom de fichier au format
+// « Artiste - Album - Titre ». Ignore tout ce qui est entre crochets
+// (ex. « [NUMER1234] »), retire l'extension, et tolère 1 à 3+ segments.
+export function parseFileName(name) {
+  const base = String(name)
+    .replace(/\.[^.]+$/, "")        // extension
+    .replace(/\[[^\]]*\]/g, " ")    // contenu entre crochets
+    .replace(/[\[\]]/g, " ")        // crochets orphelins
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const parts = base.split(/\s+[-–—]\s+/).map((s) => s.trim()).filter(Boolean);
+
+  let artist = "Vos fichiers", album = "Importé", title = base || "Sans titre";
+  if (parts.length >= 3) {
+    artist = parts[0];
+    album = parts[1];
+    title = parts.slice(2).join(" - ");
+  } else if (parts.length === 2) {
+    artist = parts[0];
+    title = parts[1];
+  } else if (parts.length === 1) {
+    title = parts[0];
+  }
+  return { artist, album, title };
+}
+
 function makeFileTrack(rec) {
+  // Re-dérive les métadonnées depuis le nom du fichier stocké quand il est
+  // disponible (corrige aussi les imports plus anciens).
+  const fromName = rec.blob && rec.blob.name ? parseFileName(rec.blob.name) : null;
   return {
     id: rec.id,
-    title: rec.title,
-    artist: rec.artist,
-    album: rec.album,
+    title: fromName?.title || rec.title,
+    artist: fromName?.artist || rec.artist,
+    album: fromName?.album || rec.album,
     color: rec.color,
     duration: rec.duration || 0, // affiné au chargement par <audio>
     file: true,
@@ -132,11 +163,12 @@ export async function importFiles(fileList) {
   for (const file of fileList) {
     if (!isAudioFile(file)) continue;
     const i = importCounter++;
+    const meta = parseFileName(file.name);
     const record = {
       id: `file-${Date.now()}-${i}`,
-      title: file.name.replace(/\.[^.]+$/, ""),
-      artist: "Vos fichiers",
-      album: "Importé",
+      title: meta.title,
+      artist: meta.artist,
+      album: meta.album,
       color: PALETTE_VALUES[i % PALETTE_VALUES.length],
       blob: file,
       duration: 0,
